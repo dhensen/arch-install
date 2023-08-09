@@ -1,0 +1,113 @@
+#!/bin/bash
+
+lsblk
+
+ln -sf /usr/share/zoneinfo/Europe/Amsterdam /etc/localtime
+
+hwclock --systohc
+
+sed -i '/#en_US.UTF-8/s/^#//g' /etc/locale.gen
+locale-gen
+
+
+echo "LANG=en_US.UTF-8" > /etc/locale.conf
+
+
+read -p "Please enter a hostname: " hostname
+
+echo "You entered hostname: $hostname"
+
+read -p "Do you want to proceed with this hostname? (y/n): " choice
+
+if [[ $choice == "y" || $choice == "Y" ]]; then
+    echo "Proceeding with hostname $hostname"
+    # Add your actions here that use the provided hostname
+else
+    echo "Operation canceled"
+    exit 1
+fi
+
+echo $hostname > /etc/hostname
+
+cat /etc/hosts
+
+echo "127.0.1.1 $hostname.localdomain $hostname" >> /etc/hosts
+
+cat /etc/hosts
+
+echo "Now Add the keyboard, encrypt, and lvm2 hooks to /etc/mkinitcpio.conf, to make it look like this:\nHOOKS=(base udev autodetect keyboard modconf block encrypt lvm2 filesystems fsck)"
+
+while true; do
+    read -p "Do you want to proceed? (y/n/l): " choice
+
+    if [[ $choice == "y" || $choice == "Y" ]]; then
+        echo "Proceeding"
+        # Add your actions here to perform after user confirms (proceeds).
+        break
+    elif [[ $choice == "l" ]]; then
+        echo "You are lazy. I will do it for you"
+        cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.bck
+        sed -i "s|^HOOKS=.*|HOOKS=(base udev autodetect keyboard modconf block encrypt lvm2 filesystems fsck)|g" /etc/mkinitcpio.conf
+        sed -i "s|^FILES=.*|FILES=(/root/secrets/crypto_keyfile.bin)|g" /etc/mkinitcpio.conf
+        break
+    elif [[ $choice == "n" || $choice == "N" ]]; then
+        echo "Operation canceled"
+    else
+        echo "Invalid choice. Please enter 'y' or 'n'."
+    fi
+done
+
+#mkinitcpio -p linux
+
+
+echo "not set root password:"
+
+passwd
+
+
+pacman -S grub
+
+
+#!/bin/bash
+
+blkid
+
+read -p "Enter the disk prefix for the partition containing the LUKS container (e.g., sda3, nvme0n1p3): " disk_prefix
+
+echo "You entered disk prefix: $disk_prefix"
+
+read -p "Do you want to proceed with this disk prefix? (y/n): " choice
+
+if [[ $choice == "y" || $choice == "Y" ]]; then
+    echo "Proceeding with disk prefix $disk_prefix"
+    # Add your actions here that use the provided disk prefix
+else
+    echo "Operation canceled"
+fi
+
+cp /etc/default/grub /etc/default/grub.bck
+sed -i '/GRUB_ENABLE_CRYPTODISK/s/^#//g' /etc/default/grub
+BLKID=$(blkid | grep $disk_prefix | cut -d '"' -f 2)
+GRUBCMD="\"cryptdevice=UUID=$BLKID:cryptlvm root=/dev/vg/root cryptkey=rootfs:/root/secrets/crypto_keyfile.bin random.trust_cpu=on\""
+sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=${GRUBCMD}|g" /etc/default/grub
+
+
+
+pacman -S efibootmgr
+grub-install --target=x86_64-efi --efi-directory=/efi
+pacman -S amd-ucode
+
+grub-mkconfig -o /boot/grub/grub.cfg
+
+mkdir /root/secrets && chmod 700 /root/secrets
+head -c 64 /dev/urandom > /root/secrets/crypto_keyfile.bin && chmod 600 /root/secrets/crypto_keyfile.bin
+cryptsetup -v luksAddKey -i 1 /dev/$disk_prefix /root/secrets/crypto_keyfile.bin
+
+mkinitcpio -p linux
+
+chmod 700 /boot
+
+echo "DONE"
+
+echo "you can now exit and reboot"
+

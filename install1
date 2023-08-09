@@ -1,0 +1,32 @@
+
+timedatectl set-ntp true
+
+echo "perform partitioning manually using gdisk now"
+
+cat << EOF
+Number 	Start (sector) 	End (sector) 	Size 	Code 	Name
+1 	2048 	4095 	1024.0 KiB 	EF02 	BIOS boot partition
+2 	4096 	1130495 	550.0 MiB 	EF00 	EFI System
+3 	1130496 	976773134 	465.2 GiB 	8309 	Linux LUKS
+
+gdisk /dev/nvme0n1
+
+o
+n
+[Enter]
+0
++1M
+ef02
+n
+[Enter]
+[Enter]
++550M
+ef00
+n
+[Enter]
+[Enter]
+[Enter]
+8309
+w
+
+EOF

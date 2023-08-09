@@ -1,0 +1,13 @@
+
+MIRRORLIST_URL="https://archlinux.org/mirrorlist/?country=NL&protocol=https&ip_version=4"
+
+# Fetch the mirrorlist and save it to a temporary file
+curl -s "$MIRRORLIST_URL" | sed -e 's/^#Server/Server/' -e '/^#/d' > /tmp/temp_mirrorlist
+
+# Backup the existing mirrorlist
+sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+
+# Replace the existing mirrorlist with the new one
+sudo mv /tmp/temp_mirrorlist /etc/pacman.d/mirrorlist
+
+echo "New mirrorlist has been set!"

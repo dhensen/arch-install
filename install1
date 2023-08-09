@@ -1,5 +1,6 @@
 
 timedatectl set-ntp true
+pacman -S lvm2 arch-install-scripts dosfstools
 
 echo "perform partitioning manually using gdisk now"
 
@@ -12,15 +13,17 @@ Number 	Start (sector) 	End (sector) 	Size 	Code 	Name
 gdisk /dev/nvme0n1
 
 o
+Y
+[Enter]
 n
 [Enter]
-0
+34
 +1M
 ef02
 n
 [Enter]
 [Enter]
-+550M
++1G
 ef00
 n
 [Enter]
@@ -28,5 +31,7 @@ n
 [Enter]
 8309
 w
+Y
+[Enter]
 
 EOF

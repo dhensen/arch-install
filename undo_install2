@@ -1,0 +1,4 @@
+  umount -R /mnt
+  swapoff /dev/vg/swap
+  vgchange -a n vg
+  cryptsetup close cryptlvm
